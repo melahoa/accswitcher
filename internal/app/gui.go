@@ -21,7 +21,6 @@ import (
 	"TcNo-Acc-Switcher/internal/discordrpc"
 	"TcNo-Acc-Switcher/internal/ipc"
 	"TcNo-Acc-Switcher/internal/logredact"
-	"TcNo-Acc-Switcher/internal/owupdate"
 	"TcNo-Acc-Switcher/internal/paths"
 	"TcNo-Acc-Switcher/internal/platform"
 	"TcNo-Acc-Switcher/internal/screenprivacy"
@@ -244,31 +243,18 @@ func RunGUI(params RunGUIParams) {
 		wailsApp.Logger.Warn("autostart sync", "error", err)
 	}
 
-	currentVersion := buildinfo.Version()
-	if buildmode.IsOverwatchBuild() {
-		currentVersion = buildmode.OverwatchVersion
-	}
-
-	if currentVersion != "" && !guiSettings.OfflineMode {
-		if buildmode.IsOverwatchBuild() {
-			// This build's own release feed (melahoa/accswitcher), unsigned:
-			// no keypair to manage for every release, and the frontend always
-			// confirms with the user before DownloadAndInstall ever runs, so
-			// there is no headless auto-apply path to protect with a
-			// signature the way the main app's does. WindowNone because the
-			// confirmation and progress UI is this build's own Svelte
-			// dialog, not the shared native updater window.
-			gh, err := owupdate.NewProvider()
-			if err != nil {
-				wailsApp.Logger.Error("updater: provider", "error", err)
-			} else if err := wailsApp.Updater.Init(updater.Config{
-				CurrentVersion: currentVersion,
-				Providers:      []updater.Provider{gh},
-				Window:         updater.WindowNone,
-			}); err != nil {
-				wailsApp.Logger.Error("updater: init", "error", err)
-			}
-		} else {
+	// The Overwatch build never initializes wailsApp.Updater at all: its own
+	// update check (internal/owupdate) is a plain read-only HTTP GET against
+	// GitHub's API, deliberately independent of this self-download-and-replace
+	// machinery - a process that downloads an executable, overwrites itself,
+	// and relaunches is close to a textbook heuristic signature for
+	// dropper/trojan malware, and initializing this subsystem is what
+	// actually exercises that behavior at runtime, regardless of which
+	// method ends up called. Installing an update in that build is always a
+	// normal manual download the user drives in their own browser.
+	if !buildmode.IsOverwatchBuild() {
+		currentVersion := buildinfo.Version()
+		if currentVersion != "" && !guiSettings.OfflineMode {
 			// v4.0.1-v4.0.6 clients cannot use these signatures (embedded key in
 			// the wrong format) nor apply updates at all (their swap helper died
 			// at the singleton check before main gained the early

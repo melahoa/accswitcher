@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { Browser } from "@wailsio/runtime";
   import * as PlatformService from "../../../bindings/TcNo-Acc-Switcher/internal/platform/platformservice.js";
   import * as BasicService from "../../../bindings/TcNo-Acc-Switcher/internal/basic/basicservice.js";
   import * as SteamService from "../../../bindings/TcNo-Acc-Switcher/internal/steam/steamservice.js";
@@ -53,8 +54,7 @@
   }
 
   let checkingForUpdate = false;
-  let availableUpdate: { version: string; notes: string } | null = null;
-  let installingUpdate = false;
+  let availableUpdate: { version: string; notes: string; url: string } | null = null;
 
   // isManual distinguishes the toolbar button (always reports back, even
   // "you're up to date") from the launch-time background check (silent
@@ -66,7 +66,7 @@
     try {
       const info = await OverwatchUpdateService.CheckForUpdate();
       if (info.available) {
-        availableUpdate = { version: info.version, notes: info.notes };
+        availableUpdate = { version: info.version, notes: info.notes, url: info.url };
       } else if (isManual) {
         pushToast({ type: "success", message: "You're up to date.", duration: 4000 });
       }
@@ -80,16 +80,19 @@
     }
   }
 
-  async function handleInstallUpdate(): Promise<void> {
-    installingUpdate = true;
+  // Opens the release page in the user's own browser rather than downloading
+  // and replacing this exe automatically - a self-updating binary is exactly
+  // the behavior pattern antivirus heuristics flag as dropper/trojan-like,
+  // which is what got an earlier version of this feature flagged.
+  async function handleOpenDownloadPage(): Promise<void> {
+    const url = availableUpdate?.url;
+    availableUpdate = null;
+    if (!url) return;
     try {
-      // On success the app restarts itself to apply the update, so there is
-      // nothing further to show here.
-      await OverwatchUpdateService.DownloadAndInstall();
+      await Browser.OpenURL(url);
     } catch (err) {
-      console.error("[overwatch] DownloadAndInstall failed", err);
-      pushToast({ type: "error", message: formatToastWithError("Could not install the update", err) });
-      installingUpdate = false;
+      console.error("[overwatch] OpenURL failed", err);
+      pushToast({ type: "error", message: formatToastWithError("Could not open the download page", err) });
     }
   }
 
@@ -506,8 +509,7 @@
   <OverwatchUpdateDialog
     version={availableUpdate.version}
     notes={availableUpdate.notes}
-    installing={installingUpdate}
-    onInstall={handleInstallUpdate}
+    onOpenDownload={handleOpenDownloadPage}
     onLater={() => (availableUpdate = null)}
   />
 {/if}

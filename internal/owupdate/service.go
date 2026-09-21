@@ -1,22 +1,27 @@
 // Package owupdate is the Overwatch build's own update checker. It points at
 // melahoa/accswitcher's GitHub releases rather than the main app's release
 // feed (a different repository, numbered independently - see
-// buildmode.OverwatchVersion), and unlike the main app's updater it is
-// unsigned: releases are still integrity-checked against whatever digest
-// GitHub's API supplies, but there is no keypair to manage for every future
-// release. The frontend always confirms with the user before installing -
-// CheckForUpdate and DownloadAndInstall are deliberately separate calls.
+// buildmode.OverwatchVersion).
+//
+// Deliberately a plain read-only HTTP GET against GitHub's public REST API,
+// not the Wails updater package's self-download-and-replace machinery: a
+// process that downloads an executable, overwrites itself, and relaunches is
+// close to a textbook heuristic signature for dropper/trojan malware, and an
+// earlier version of this file did exactly that using the Wails updater -
+// which got this build flagged by Windows Defender. Checking is the only
+// thing this package does; installing an update is always a normal manual
+// download the user drives themselves, in their own browser.
 package owupdate
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"strconv"
 	"strings"
 	"time"
-
-	"github.com/wailsapp/wails/v3/pkg/application"
-	"github.com/wailsapp/wails/v3/pkg/updater"
-	"github.com/wailsapp/wails/v3/pkg/updater/providers/github"
 
 	"TcNo-Acc-Switcher/internal/buildmode"
 	"TcNo-Acc-Switcher/internal/security"
@@ -26,35 +31,11 @@ import (
 const Repository = "melahoa/accswitcher"
 
 const checkTimeout = 15 * time.Second
-const installTimeout = 10 * time.Minute
 
-// releaseAssets are this build's own release asset basenames, keyed by
-// GOOS/GOARCH - separate from the main app's TcNo-Acc-Switcher.exe.
-var releaseAssets = map[string]string{
-	"windows/amd64": "BonbonsAccountSwitcher.exe",
-}
-
-// AssetMatcher selects this build's release asset for the running platform.
-func AssetMatcher(req updater.CheckRequest, assets []github.ReleaseAsset) int {
-	want, ok := releaseAssets[req.Platform+"/"+req.Arch]
-	if !ok {
-		return github.DefaultAssetMatcher(req, assets)
-	}
-	wantLower := strings.ToLower(want)
-	for i, a := range assets {
-		if strings.EqualFold(a.Name, want) || strings.ToLower(a.Name) == wantLower {
-			return i
-		}
-	}
-	return github.DefaultAssetMatcher(req, assets)
-}
-
-// NewProvider builds the GitHub release provider for this build.
-func NewProvider() (updater.Provider, error) {
-	return github.New(github.Config{
-		Repository:   Repository,
-		AssetMatcher: AssetMatcher,
-	})
+type githubRelease struct {
+	TagName string `json:"tag_name"`
+	HTMLURL string `json:"html_url"`
+	Body    string `json:"body"`
 }
 
 // UpdateInfoDTO is the JSON shape the frontend checks for an available update.
@@ -62,6 +43,9 @@ type UpdateInfoDTO struct {
 	Available bool   `json:"available"`
 	Version   string `json:"version"`
 	Notes     string `json:"notes"`
+	// URL is the release page to open in the user's browser - this build
+	// never downloads or applies anything on its own.
+	URL string `json:"url"`
 }
 
 // Service is the Wails-bound entry point the frontend's "Check for updates"
@@ -71,14 +55,6 @@ type Service struct{}
 // ServiceName is the Wails service name.
 func (s *Service) ServiceName() string { return "OverwatchUpdateService" }
 
-func runningApp() (*application.App, error) {
-	app := application.Get()
-	if app == nil {
-		return nil, errors.New("application is not ready yet")
-	}
-	return app, nil
-}
-
 // Version returns this running build's own version number, for display
 // (e.g. a small version label in the corner of the window) - not to be
 // confused with the main app's build/config.yml version.
@@ -87,42 +63,71 @@ func (s *Service) Version() string {
 }
 
 // CheckForUpdate asks GitHub for the latest release and reports whether it is
-// newer than this running build. It never downloads anything.
+// newer than this running build. It never downloads anything - installing is
+// always a manual step the user takes in their own browser.
 func (s *Service) CheckForUpdate() (UpdateInfoDTO, error) {
 	if err := security.RequireUnlocked(); err != nil {
 		return UpdateInfoDTO{}, err
 	}
-	app, err := runningApp()
-	if err != nil {
-		return UpdateInfoDTO{}, err
-	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), checkTimeout)
 	defer cancel()
-	release, err := app.Updater.Check(ctx)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		"https://api.github.com/repos/"+Repository+"/releases/latest", nil)
 	if err != nil {
 		return UpdateInfoDTO{}, err
 	}
-	if release == nil {
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("User-Agent", "BonbonsAccountSwitcher/"+buildmode.OverwatchVersion)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return UpdateInfoDTO{}, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return UpdateInfoDTO{}, fmt.Errorf("owupdate: GitHub API returned %d", resp.StatusCode)
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return UpdateInfoDTO{}, err
+	}
+	var release githubRelease
+	if err := json.Unmarshal(body, &release); err != nil {
+		return UpdateInfoDTO{}, err
+	}
+
+	latest := strings.TrimPrefix(strings.TrimSpace(release.TagName), "v")
+	if !isNewer(latest, buildmode.OverwatchVersion) {
 		return UpdateInfoDTO{Available: false}, nil
 	}
-	return UpdateInfoDTO{Available: true, Version: release.Version, Notes: release.Notes}, nil
+	return UpdateInfoDTO{
+		Available: true,
+		Version:   latest,
+		Notes:     release.Body,
+		URL:       release.HTMLURL,
+	}, nil
 }
 
-// DownloadAndInstall downloads the release found by the most recent
-// CheckForUpdate and restarts the app to apply it. Only call this after the
-// user has explicitly confirmed - it is never triggered on its own.
-func (s *Service) DownloadAndInstall() error {
-	if err := security.RequireUnlocked(); err != nil {
-		return err
+// isNewer does a plain MAJOR.MINOR.PATCH numeric comparison. No prerelease or
+// build-metadata handling - this build's own tags are always plain vX.Y.Z.
+func isNewer(latest, current string) bool {
+	l := parseVersion(latest)
+	c := parseVersion(current)
+	for i := range l {
+		if l[i] != c[i] {
+			return l[i] > c[i]
+		}
 	}
-	app, err := runningApp()
-	if err != nil {
-		return err
+	return false
+}
+
+func parseVersion(v string) [3]int {
+	var out [3]int
+	parts := strings.SplitN(v, ".", 3)
+	for i := 0; i < len(parts) && i < 3; i++ {
+		n, _ := strconv.Atoi(strings.TrimSpace(parts[i]))
+		out[i] = n
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), installTimeout)
-	defer cancel()
-	if err := app.Updater.DownloadAndInstall(ctx); err != nil {
-		return err
-	}
-	return app.Updater.Restart(ctx)
+	return out
 }

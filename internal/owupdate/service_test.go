@@ -1,40 +1,38 @@
 package owupdate
 
-import (
-	"testing"
+import "testing"
 
-	"github.com/wailsapp/wails/v3/pkg/updater"
-	"github.com/wailsapp/wails/v3/pkg/updater/providers/github"
-)
-
-func TestAssetMatcherPicksTheWindowsExeByName(t *testing.T) {
-	assets := []github.ReleaseAsset{
-		{Name: "SHA256SUMS"},
-		{Name: "BonbonsAccountSwitcher.exe"},
-		{Name: "BonbonsAccountSwitcher.exe.sig"},
+func TestIsNewer(t *testing.T) {
+	cases := []struct {
+		latest, current string
+		want            bool
+	}{
+		{"0.5.0", "0.4.0", true},
+		{"0.4.0", "0.5.0", false},
+		{"0.4.0", "0.4.0", false},
+		{"1.0.0", "0.9.9", true},
+		{"0.4.10", "0.4.9", true},
+		{"0.4.9", "0.4.10", false},
 	}
-	req := updater.CheckRequest{Platform: "windows", Arch: "amd64"}
-	idx := AssetMatcher(req, assets)
-	if idx != 1 {
-		t.Fatalf("AssetMatcher = %d, want 1 (BonbonsAccountSwitcher.exe)", idx)
-	}
-}
-
-func TestAssetMatcherIsCaseInsensitive(t *testing.T) {
-	assets := []github.ReleaseAsset{{Name: "bonbonsaccountswitcher.EXE"}}
-	req := updater.CheckRequest{Platform: "windows", Arch: "amd64"}
-	if idx := AssetMatcher(req, assets); idx != 0 {
-		t.Fatalf("AssetMatcher = %d, want 0", idx)
+	for _, c := range cases {
+		if got := isNewer(c.latest, c.current); got != c.want {
+			t.Errorf("isNewer(%q, %q) = %v, want %v", c.latest, c.current, got, c.want)
+		}
 	}
 }
 
-func TestAssetMatcherFallsBackForUnknownPlatform(t *testing.T) {
-	assets := []github.ReleaseAsset{{Name: "app-darwin-arm64.zip"}}
-	req := updater.CheckRequest{Platform: "darwin", Arch: "arm64"}
-	// No entry in releaseAssets for darwin/arm64 - falls through to Wails'
-	// own DefaultAssetMatcher rather than refusing to match anything.
-	idx := AssetMatcher(req, assets)
-	if idx != github.DefaultAssetMatcher(req, assets) {
-		t.Fatalf("AssetMatcher = %d, want DefaultAssetMatcher's result", idx)
+func TestParseVersionToleratesGarbage(t *testing.T) {
+	got := parseVersion("not-a-version")
+	want := [3]int{0, 0, 0}
+	if got != want {
+		t.Errorf("parseVersion(garbage) = %v, want %v", got, want)
+	}
+}
+
+func TestParseVersionHandlesTwoSegments(t *testing.T) {
+	got := parseVersion("0.5")
+	want := [3]int{0, 5, 0}
+	if got != want {
+		t.Errorf("parseVersion(\"0.5\") = %v, want %v", got, want)
 	}
 }

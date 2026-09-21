@@ -1,12 +1,11 @@
 <script lang="ts">
   export let version: string;
   export let notes: string;
-  export let installing: boolean;
-  export let onInstall: () => void;
+  export let onOpenDownload: () => void;
   export let onLater: () => void;
 
   function handleBackdropKeydown(e: KeyboardEvent): void {
-    if (e.key === "Escape" && !installing) onLater();
+    if (e.key === "Escape") onLater();
   }
 </script>
 
@@ -15,18 +14,17 @@
 <div
   class="ow-update-backdrop"
   role="presentation"
-  on:click={(e) => { if (!installing && e.target === e.currentTarget) onLater(); }}
+  on:click={(e) => { if (e.target === e.currentTarget) onLater(); }}
 >
   <div class="ow-update" role="dialog" tabindex="-1" aria-modal="true" aria-label="Update available">
     <h2 class="ow-update-title">Update available: v{version}</h2>
     {#if notes}
       <p class="ow-update-notes">{notes}</p>
     {/if}
+    <p class="ow-update-hint">This opens the release page in your browser - the download and install are up to you.</p>
     <div class="ow-update-actions">
-      <button type="button" class="ow-btn ow-btn--secondary" on:click={onLater} disabled={installing}>Later</button>
-      <button type="button" class="ow-btn ow-btn--primary" on:click={onInstall} disabled={installing}>
-        {installing ? "Installing…" : "Download & Install"}
-      </button>
+      <button type="button" class="ow-btn ow-btn--secondary" on:click={onLater}>Later</button>
+      <button type="button" class="ow-btn ow-btn--primary" on:click={onOpenDownload}>Open download page</button>
     </div>
   </div>
 </div>
@@ -60,6 +58,11 @@
     white-space: pre-line;
     max-height: 220px;
     overflow-y: auto;
+  }
+  .ow-update-hint {
+    margin: 0 0 1rem;
+    font-size: 0.78rem;
+    color: var(--text-dim-gray, #6b6a6a);
   }
   .ow-update-actions {
     display: flex;
