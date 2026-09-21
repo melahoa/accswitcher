@@ -6,6 +6,7 @@
   import type { Settings as SteamSettings } from "../../../bindings/TcNo-Acc-Switcher/internal/steam/models.js";
   import * as OverwatchService from "../../../bindings/TcNo-Acc-Switcher/internal/owrank/service.js";
   import type { RoleRankDTO } from "../../../bindings/TcNo-Acc-Switcher/internal/owrank/models.js";
+  import * as OverwatchUpdateService from "../../../bindings/TcNo-Acc-Switcher/internal/owupdate/service.js";
   import { pushToast } from "../../stores/toast";
   import { formatToastWithError } from "../../lib/formatWailsError";
   import { PLATFORM_ICONS } from "../../lib/overwatch/icons";
@@ -14,6 +15,7 @@
   import OverwatchAccountCard from "./OverwatchAccountCard.svelte";
   import OverwatchAccountEditor from "./OverwatchAccountEditor.svelte";
   import OverwatchNamePrompt from "./OverwatchNamePrompt.svelte";
+  import OverwatchUpdateDialog from "./OverwatchUpdateDialog.svelte";
   import type { OverwatchAccountRowData, OverwatchRoleRanks } from "./overwatchTypes";
 
   type SortKey = Role | "name";
@@ -48,6 +50,47 @@
   function handleSelectTheme(id: OverwatchThemeId): void {
     currentTheme = id;
     applyOverwatchTheme(id);
+  }
+
+  let checkingForUpdate = false;
+  let availableUpdate: { version: string; notes: string } | null = null;
+  let installingUpdate = false;
+
+  // isManual distinguishes the toolbar button (always reports back, even
+  // "you're up to date") from the launch-time background check (silent
+  // unless it actually finds something - nobody wants a toast on every
+  // startup just to confirm nothing changed).
+  async function checkForUpdate(isManual: boolean): Promise<void> {
+    if (checkingForUpdate) return;
+    checkingForUpdate = true;
+    try {
+      const info = await OverwatchUpdateService.CheckForUpdate();
+      if (info.available) {
+        availableUpdate = { version: info.version, notes: info.notes };
+      } else if (isManual) {
+        pushToast({ type: "success", message: "You're up to date.", duration: 4000 });
+      }
+    } catch (err) {
+      console.error("[overwatch] CheckForUpdate failed", err);
+      if (isManual) {
+        pushToast({ type: "error", message: formatToastWithError("Could not check for updates", err) });
+      }
+    } finally {
+      checkingForUpdate = false;
+    }
+  }
+
+  async function handleInstallUpdate(): Promise<void> {
+    installingUpdate = true;
+    try {
+      // On success the app restarts itself to apply the update, so there is
+      // nothing further to show here.
+      await OverwatchUpdateService.DownloadAndInstall();
+    } catch (err) {
+      console.error("[overwatch] DownloadAndInstall failed", err);
+      pushToast({ type: "error", message: formatToastWithError("Could not install the update", err) });
+      installingUpdate = false;
+    }
   }
 
   async function handleToggleRunOnStartup(): Promise<void> {
@@ -151,6 +194,8 @@
     PlatformService.GetStartTrayWithWindows()
       .then((enabled) => { runOnStartup = enabled; })
       .catch((err) => console.error("[overwatch] GetStartTrayWithWindows failed", err));
+    // Silent unless it actually finds something - see checkForUpdate.
+    void checkForUpdate(false);
     // Steam accounts sync from loginusers.vdf on every fetch, and a saved
     // Battle.net session only appears after the user logs in outside this
     // window - refreshing when focus actually returns after having left
@@ -365,6 +410,9 @@
       />
       Run on startup
     </label>
+    <button type="button" class="ow-add-btn" on:click={() => checkForUpdate(true)} disabled={checkingForUpdate}>
+      {checkingForUpdate ? "Checking…" : "Check for updates"}
+    </button>
   </div>
 
   <div class="ow-toolbar">
@@ -451,6 +499,16 @@
     confirmLabel="Save"
     onConfirm={handleConfirmSteamFolder}
     onCancel={() => (showSteamFolderPrompt = false)}
+  />
+{/if}
+
+{#if availableUpdate}
+  <OverwatchUpdateDialog
+    version={availableUpdate.version}
+    notes={availableUpdate.notes}
+    installing={installingUpdate}
+    onInstall={handleInstallUpdate}
+    onLater={() => (availableUpdate = null)}
   />
 {/if}
 

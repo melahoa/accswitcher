@@ -21,6 +21,7 @@ import (
 	"TcNo-Acc-Switcher/internal/legacyinstall"
 	"TcNo-Acc-Switcher/internal/logredact"
 	"TcNo-Acc-Switcher/internal/owrank"
+	"TcNo-Acc-Switcher/internal/owupdate"
 	"TcNo-Acc-Switcher/internal/paths"
 	"TcNo-Acc-Switcher/internal/platform"
 	"TcNo-Acc-Switcher/internal/security"
@@ -314,6 +315,7 @@ func serviceList() []application.Service {
 		application.NewService(steamBrowserSvc),
 		application.NewService(serverPickerSvc),
 		application.NewService(&owrank.Service{}),
+		application.NewService(&owupdate.Service{}),
 	}
 }
 
