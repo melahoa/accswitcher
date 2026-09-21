@@ -75,7 +75,7 @@ const (
 func mainWindowOptions(guiSettings platform.AppSettings, parsed cli.Parsed) application.WebviewWindowOptions {
 	title := "TcNo Account Switcher"
 	if buildmode.IsOverwatchBuild() {
-		title = "Overwatch Account Switcher"
+		title = "Bonbon's Account Switcher"
 	}
 	winOpts := application.WebviewWindowOptions{
 		Name:      "main",

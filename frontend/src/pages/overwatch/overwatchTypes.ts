@@ -18,4 +18,5 @@ export interface OverwatchAccountRowData {
   roles: OverwatchRoleRanks;
   /** App-only visibility - never touches the real account or its login files. */
   hidden: boolean;
+  note: string;
 }

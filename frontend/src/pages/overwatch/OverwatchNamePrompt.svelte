@@ -113,7 +113,7 @@
   }
   .ow-btn--primary {
     background: var(--accent);
-    color: #0b0e12;
+    color: var(--ow-accent-text, #0b0e12);
     font-weight: 600;
   }
   .ow-btn--primary:disabled {

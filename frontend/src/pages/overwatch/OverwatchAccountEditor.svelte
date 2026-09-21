@@ -4,20 +4,23 @@
   import type { OverwatchAccountRowData, OverwatchRoleRanks } from "./overwatchTypes";
 
   export let row: OverwatchAccountRowData;
-  export let note: string;
-  export let onSave: (roles: OverwatchRoleRanks, note: string) => void;
+  export let onSave: (roles: OverwatchRoleRanks) => void;
+  export let onSaveNote: (note: string) => void;
   export let onCancel: () => void;
   export let onToggleHidden: () => void;
 
   const divisions = Array.from({ length: MAX_DIVISION - MIN_DIVISION + 1 }, (_, i) => MIN_DIVISION + i);
 
-  // Local working copy - the account's stored ranks/note are not touched until Save.
+  // Local working copy - the account's stored ranks are not touched until Save.
   let draft: Record<string, { tier: string; division: number }> = {};
   for (const role of ROLES) {
     const existing = row.roles[role];
     draft[role] = { tier: existing?.tier ?? "", division: existing?.division ?? MAX_DIVISION };
   }
-  let noteDraft = note;
+  // The note saves the moment it loses focus (see onSaveNote), not on the
+  // ranks Save button, so closing this dialog - or the whole app - right
+  // after typing one never loses it.
+  let noteDraft = row.note;
 
   function setTier(role: string, tier: string): void {
     draft[role] = { ...draft[role], tier };
@@ -35,7 +38,11 @@
         roles[role] = { tier: d.tier, division: d.division };
       }
     }
-    onSave(roles, noteDraft.trim());
+    onSave(roles);
+  }
+
+  function handleNoteBlur(): void {
+    onSaveNote(noteDraft.trim());
   }
 
   function handleBackdropKeydown(e: KeyboardEvent): void {
@@ -89,7 +96,14 @@
     </div>
 
     <label class="ow-editor-note-label" for="ow-editor-note">Note</label>
-    <textarea id="ow-editor-note" class="ow-editor-note" rows="2" bind:value={noteDraft} placeholder="Optional note about this account"></textarea>
+    <textarea
+      id="ow-editor-note"
+      class="ow-editor-note"
+      rows="2"
+      bind:value={noteDraft}
+      on:blur={handleNoteBlur}
+      placeholder="Optional note about this account"
+    ></textarea>
 
     <div class="ow-editor-actions">
       <button type="button" class="ow-btn ow-btn--danger" on:click={onToggleHidden}>
@@ -198,7 +212,7 @@
   }
   .ow-btn--primary {
     background: var(--accent);
-    color: #0b0e12;
+    color: var(--ow-accent-text, #0b0e12);
     font-weight: 600;
   }
   .ow-btn--danger {

@@ -1,16 +1,150 @@
 /*
-    Overwatch build's fixed look. theme.scss (imported first) defines every CSS
-    custom property the reused shared components expect; this file only retints
-    the handful that give the app its own identity, plus the styling for the
-    build's own components (see OverwatchAccountList.svelte and friends, which
-    keep everything else in their own scoped <style> blocks).
+    Overwatch build's themes. theme.scss (imported first) defines every CSS
+    custom property the reused shared components expect; each block below
+    retints the subset that actually shows up anywhere in this build (see
+    frontend/src/lib/overwatch/theme.ts for the picker that sets
+    [data-ow-theme] on <html>, and the grep in that file's sibling comment for
+    how this variable list was derived).
+
+    --ow-accent-text is this build's own variable (not part of the shared
+    theme contract) for the text color that sits on top of --accent-colored
+    buttons - it needs to flip between dark and light text depending on how
+    light the theme's accent color itself is.
+
+    --overlay-white-* keep their shared name but are repurposed per theme:
+    they're literally "white at N% alpha" in the shared dark themes, which
+    only works as a subtle highlight over a dark background. Light-background
+    themes here (light, cherry) redefine them as dark-tinted alpha instead so
+    card surfaces and hover states stay visible.
 */
-:root {
-    --accent: #f99e1a;
-    --accentHS: 38, 93%;
-    --accentL: 54%;
-    --accentInt: 249, 158, 26;
-    --program-bg: linear-gradient(90deg, #14181f, #0f1319 100%);
-    --mainContentBackground: #14181f;
-    --border-bar-bg: #1c2129;
+:root,
+[data-ow-theme="dark"] {
+    --accent: #c9c9c9;
+    --ow-accent-text: #14161a;
+    --program-bg: linear-gradient(135deg, #1e1e1e, #0c0c0c);
+    --mainContentBackground: #151515;
+    --border-bar-bg: #1c1c1c;
+    --code: #232323;
+    --code-background: #131313;
+    --darker-code-background: #0d0d0d;
+    --white: #f2f2f2;
+    --whiteSecondary: #f2f2f2;
+    --text-body-muted: #9a9a9a;
+    --text-dim-gray: #6b6b6b;
+    --overlay-white-06: rgba(255, 255, 255, 0.06);
+    --overlay-white-08: rgba(255, 255, 255, 0.08);
+    --overlay-white-12: rgba(255, 255, 255, 0.12);
+    --overlay-white-14: rgba(255, 255, 255, 0.14);
+    --button-bg: #262626;
+    --button-bg-hover: #303030;
+    --window-control-hover-bg: #333333;
+    --scrollbar-track-bg: #1a1a1a;
+}
+
+[data-ow-theme="light"] {
+    --accent: #2563eb;
+    --ow-accent-text: #ffffff;
+    --program-bg: linear-gradient(135deg, #fbfcfe, #e7ebf0);
+    --mainContentBackground: #eef1f5;
+    --border-bar-bg: #dde1e7;
+    --code: #ffffff;
+    --code-background: #e8ebef;
+    --darker-code-background: #dde1e6;
+    --white: #14171a;
+    --whiteSecondary: #14171a;
+    --text-body-muted: #565c64;
+    --text-dim-gray: #868c94;
+    --overlay-white-06: rgba(20, 23, 26, 0.05);
+    --overlay-white-08: rgba(20, 23, 26, 0.08);
+    --overlay-white-12: rgba(20, 23, 26, 0.12);
+    --overlay-white-14: rgba(20, 23, 26, 0.16);
+    --button-bg: #e2e5e9;
+    --button-bg-hover: #d3d7dc;
+    --window-control-hover-bg: #dfe3e8;
+    --scrollbar-track-bg: #e6e9ed;
+    /* Role/tier icon artwork is light-colored - needs a genuinely dark chip
+       behind it here, not just a faint tint of the page background. */
+    --ow-role-box-bg: rgba(20, 23, 26, 0.82);
+}
+
+[data-ow-theme="cherry"] {
+    --accent: #ec5d9a;
+    --ow-accent-text: #ffffff;
+    --program-bg: linear-gradient(160deg, #fff6f9 0%, #ffd3e7 50%, #ffa8d3 100%);
+    --mainContentBackground: #fff0f6;
+    --border-bar-bg: #ffd6e8;
+    --code: #ffffff;
+    --code-background: #ffe4f0;
+    --darker-code-background: #ffd6e8;
+    --white: #4a2438;
+    --whiteSecondary: #4a2438;
+    --text-body-muted: #8a5b73;
+    --text-dim-gray: #b98aa0;
+    --overlay-white-06: rgba(150, 40, 90, 0.05);
+    --overlay-white-08: rgba(150, 40, 90, 0.08);
+    --overlay-white-12: rgba(150, 40, 90, 0.12);
+    --overlay-white-14: rgba(150, 40, 90, 0.16);
+    --button-bg: #ffe0ec;
+    --button-bg-hover: #ffcfe1;
+    --window-control-hover-bg: #ffd7e8;
+    --scrollbar-track-bg: #ffe6f0;
+    --ow-role-box-bg: rgba(60, 20, 42, 0.78);
+}
+
+[data-ow-theme="crimson"] {
+    --accent: #e0293f;
+    --ow-accent-text: #ffffff;
+    --program-bg: linear-gradient(160deg, #3a0808 0%, #1a0303 55%, #060000 100%);
+    --mainContentBackground: #1c0505;
+    --border-bar-bg: #3a0a0a;
+    --code: #2a0808;
+    --code-background: #160303;
+    --darker-code-background: #0d0101;
+    --white: #f5e6e6;
+    --whiteSecondary: #f5e6e6;
+    --text-body-muted: #c98f8f;
+    --text-dim-gray: #8f5a5a;
+    --overlay-white-06: rgba(255, 120, 120, 0.06);
+    --overlay-white-08: rgba(255, 120, 120, 0.09);
+    --overlay-white-12: rgba(255, 120, 120, 0.14);
+    --overlay-white-14: rgba(255, 120, 120, 0.18);
+    --button-bg: #3a0d0d;
+    --button-bg-hover: #4a1212;
+    --window-control-hover-bg: #4a1212;
+    --scrollbar-track-bg: #200606;
+}
+
+[data-ow-theme="ocean"] {
+    --accent: #1ea7e0;
+    --ow-accent-text: #062338;
+    --program-bg: linear-gradient(160deg, #cdeeff 0%, #4a90c2 45%, #0b2545 100%);
+    --mainContentBackground: #123258;
+    --border-bar-bg: #0e2a4a;
+    --code: #173a63;
+    --code-background: #0c2140;
+    --darker-code-background: #081830;
+    --white: #eaf6ff;
+    --whiteSecondary: #eaf6ff;
+    --text-body-muted: #9fc3dd;
+    --text-dim-gray: #5f87a8;
+    --overlay-white-06: rgba(200, 230, 255, 0.06);
+    --overlay-white-08: rgba(200, 230, 255, 0.09);
+    --overlay-white-12: rgba(200, 230, 255, 0.14);
+    --overlay-white-14: rgba(200, 230, 255, 0.18);
+    --button-bg: #173a63;
+    --button-bg-hover: #1f4877;
+    --window-control-hover-bg: #1f4877;
+    --scrollbar-track-bg: #0c2140;
+}
+
+/*
+    This build has its own name and no TcNo branding, but TitleBar.svelte is
+    reused as-is (it's the shared window drag/close chrome) rather than
+    forked just to drop one element. Hiding it here instead keeps that
+    component identical for the main app - this file is never loaded there.
+    !important is needed because Svelte scopes .header_icon's own rule with a
+    component-hash class, which otherwise outranks a plain selector here.
+*/
+.header_icon {
+    display: none !important;
 }

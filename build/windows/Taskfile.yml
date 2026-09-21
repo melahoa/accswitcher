@@ -25,6 +25,7 @@ tasks:
           DEV: '{{.DEV}}'
           EXTRA_TAGS: '{{.EXTRA_TAGS}}'
           FRONTEND_BUILD_COMMAND: '{{.FRONTEND_BUILD_COMMAND}}'
+          APP_NAME: '{{.APP_NAME}}'
     vars:
       # Default to CGO_ENABLED=0 if not explicitly set
       CGO_ENABLED: '{{.CGO_ENABLED | default "0"}}'
@@ -45,6 +46,9 @@ tasks:
       - task: common:generate:icons
     cmds:
       - task: generate:syso
+        vars:
+          EXTRA_TAGS:
+            ref: .EXTRA_TAGS
       - go build {{.BUILD_FLAGS}} -o "{{.BIN_DIR}}/{{.APP_NAME}}.exe"
       - cmd: powershell Remove-item *.syso
         platforms: [windows]
@@ -72,6 +76,9 @@ tasks:
           Build it first: wails3 task setup:docker
     cmds:
       - task: generate:syso
+        vars:
+          EXTRA_TAGS:
+            ref: .EXTRA_TAGS
       - docker run --rm -v "{{.ROOT_DIR}}:/app" -v "{{.GO_MOD_CACHE}}:/go/pkg/mod" {{.REPLACE_MOUNTS}} -e APP_NAME="{{.APP_NAME}}" -e GOTOOLCHAIN=auto {{if .EXTRA_TAGS}}-e EXTRA_TAGS="{{.EXTRA_TAGS}}"{{end}} {{.CROSS_IMAGE}} windows {{.DOCKER_ARCH}}
       - docker run --rm -v "{{.ROOT_DIR}}:/app" alpine chown -R $(id -u):$(id -g) /app/bin
       - rm -f *.syso
@@ -110,9 +117,13 @@ tasks:
     summary: Generates Windows `.syso` file
     dir: build
     cmds:
-      - wails3 generate syso -arch {{.ARCH}} -icon windows/icon.ico -manifest windows/wails.exe.manifest -info windows/info.json -out ../wails_windows_{{.ARCH}}.syso
+      - wails3 generate syso -arch {{.ARCH}} -icon {{.ICON_PATH}} -manifest windows/wails.exe.manifest -info windows/info.json -out ../wails_windows_{{.ARCH}}.syso
     vars:
       ARCH: '{{.ARCH | default ARCH}}'
+      # The Overwatch variant gets its own icon rather than overwriting the
+      # main app's windows/icon.ico, which common:generate:icons regenerates
+      # from build/appicon.png on every build regardless of variant.
+      ICON_PATH: '{{if eq .EXTRA_TAGS "overwatch"}}windows/icon-overwatch.ico{{else}}windows/icon.ico{{end}}'
 
   create:nsis:installer:
     summary: Creates an NSIS installer

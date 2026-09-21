@@ -26,6 +26,7 @@ tasks:
         vars:
           EXTRA_TAGS: overwatch
           FRONTEND_BUILD_COMMAND: build:overwatch
+          APP_NAME: BonbonsAccountSwitcher
 
   package:
     summary: Packages a production build of the application

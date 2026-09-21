@@ -6,7 +6,7 @@
   import { appBarTitle } from "./stores/nav";
 
   onMount(() => {
-    appBarTitle.set("Overwatch Account Switcher");
+    appBarTitle.set("Bonbon's Account Switcher");
   });
 </script>
 

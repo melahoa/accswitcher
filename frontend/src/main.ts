@@ -52,11 +52,13 @@ async function bootOverwatch(): Promise<void> {
   // theme.scss supplies every CSS custom property the reused components
   // (TitleBar, AccountLiveSessionIndicator, Toast) expect, and style.scss the
   // base font/scrollbar/window-sizing rules; overwatch.scss layers this
-  // build's own fixed look on top rather than wiring up the full theme picker
-  // for a single-screen app.
+  // build's own small set of named themes on top, applied below before mount
+  // so the first paint is never the wrong one.
   await import('./styles/theme.scss')
   await import('./styles/style.scss')
   await import('./styles/overwatch.scss')
+  const { loadOverwatchTheme, applyOverwatchTheme } = await import('./lib/overwatch/theme')
+  applyOverwatchTheme(loadOverwatchTheme())
   // TitleBar (reused as-is for window drag/close) reads translated strings, so
   // i18n still loads; everything else the full app boots - offline mode,
   // routing, the navigation guard - has no equivalent here since there is

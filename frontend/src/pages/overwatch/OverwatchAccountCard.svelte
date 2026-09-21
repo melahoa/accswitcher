@@ -7,30 +7,12 @@
   export let row: OverwatchAccountRowData;
   export let onLogin: () => void;
   export let onEdit: () => void;
-
-  function handleCardClick(e: MouseEvent): void {
-    // The edit button sits inside the card; let its own handler run instead of
-    // also logging in.
-    if ((e.target as HTMLElement).closest(".ow-card-edit")) return;
-    onLogin();
-  }
-
-  function handleCardKeydown(e: KeyboardEvent): void {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      onLogin();
-    }
-  }
 </script>
 
 <div
   class="ow-card"
   class:ow-card--active={row.currentSession}
   class:ow-card--hidden={row.hidden}
-  role="button"
-  tabindex="0"
-  on:click={handleCardClick}
-  on:keydown={handleCardKeydown}
 >
   <img
     class="ow-card-platform-badge"
@@ -39,7 +21,7 @@
     title={PLATFORM_LABEL[row.platform]}
   />
 
-  <button type="button" class="ow-card-edit" on:click|stopPropagation={onEdit} aria-label="Edit ranks for {row.name}">
+  <button type="button" class="ow-card-edit" on:click={onEdit} aria-label="Edit {row.name}">
     <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
       <path
         fill="currentColor"
@@ -61,24 +43,39 @@
   {#if row.accountName && row.accountName !== row.name}
     <div class="ow-card-username" title={row.accountName}>@{row.accountName}</div>
   {/if}
+  {#if row.note}
+    <div class="ow-card-note" title={row.note}>{row.note}</div>
+  {/if}
 
-  <div class="ow-card-roles">
-    {#each ROLES as role (role)}
-      {@const rank = row.roles[role]}
-      <div
-        class="ow-card-role"
-        class:ow-card-role--unranked={!rank}
-        title="{ROLE_LABELS[role]}: {rank ? `${tierLabel(rank.tier)} ${rank.division}` : 'Unranked'}"
-      >
-        <img class="ow-card-role-icon" src={ROLE_ICONS[role]} alt={ROLE_LABELS[role]} />
-        {#if rank}
-          <img class="ow-card-tier-icon" src={TIER_ICONS[rank.tier]} alt={tierLabel(rank.tier)} />
-          <span class="ow-card-division">{rank.division}</span>
-        {:else}
-          <span class="ow-card-division ow-card-division--unranked">&ndash;</span>
-        {/if}
-      </div>
-    {/each}
+  <div class="ow-card-bottom">
+    <div class="ow-card-roles">
+      {#each ROLES as role (role)}
+        {@const rank = row.roles[role]}
+        <div
+          class="ow-card-role"
+          class:ow-card-role--unranked={!rank}
+          title="{ROLE_LABELS[role]}: {rank ? `${tierLabel(rank.tier)} ${rank.division}` : 'Unranked'}"
+        >
+          <img class="ow-card-role-icon" src={ROLE_ICONS[role]} alt={ROLE_LABELS[role]} />
+          {#if rank}
+            <img class="ow-card-tier-icon" src={TIER_ICONS[rank.tier]} alt={tierLabel(rank.tier)} />
+            <span class="ow-card-division">{rank.division}</span>
+          {:else}
+            <span class="ow-card-division ow-card-division--unranked">&ndash;</span>
+          {/if}
+        </div>
+      {/each}
+    </div>
+
+    <button
+      type="button"
+      class="ow-card-login-btn"
+      class:ow-card-login-btn--active={row.currentSession}
+      on:click={onLogin}
+      disabled={row.currentSession}
+    >
+      {row.currentSession ? "Signed in" : "Log in"}
+    </button>
   </div>
 </div>
 
@@ -93,17 +90,7 @@
     border-radius: 14px;
     background: var(--overlay-white-06, rgba(255, 255, 255, 0.06));
     border: 1px solid var(--overlay-white-08, rgba(255, 255, 255, 0.08));
-    cursor: pointer;
-    outline: none;
-    transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
-  }
-  .ow-card:hover {
-    background: var(--overlay-white-08, rgba(255, 255, 255, 0.08));
-    border-color: var(--accent);
-    transform: translateY(-2px);
-  }
-  .ow-card:focus-visible {
-    box-shadow: 0 0 0 2px var(--accent);
+    transition: border-color 120ms ease, background 120ms ease;
   }
   .ow-card--active {
     background: var(--overlay-white-12, rgba(255, 255, 255, 0.12));
@@ -195,14 +182,35 @@
     color: var(--text-body-muted, #9d9d9d);
     font-size: 0.78rem;
   }
+  .ow-card-note {
+    width: 100%;
+    margin-top: 0.15rem;
+    padding: 0.3rem 0.5rem;
+    border-radius: 6px;
+    background: var(--overlay-white-06, rgba(255, 255, 255, 0.06));
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-body-muted, #9d9d9d);
+    font-size: 0.78rem;
+    font-style: italic;
+  }
 
-  .ow-card-roles {
+  .ow-card-bottom {
     /* Pushed to the bottom of the card via the flex auto-margin trick, so it
        lands in the same place whether or not the username line above it is
        present - grid stretches every card in a row to the tallest one's
-       height, and without this the roles block would float at a different
-       height per card instead of sharing one baseline. */
+       height, and without this the roles+button block would float at a
+       different height per card instead of sharing one baseline. */
     margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    width: 100%;
+  }
+
+  .ow-card-roles {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 0.5rem;
@@ -215,7 +223,11 @@
     gap: 0.4rem;
     padding: 0.5rem 0.4rem;
     border-radius: 8px;
-    background: var(--overlay-white-06, rgba(255, 255, 255, 0.06));
+    /* Role/tier icons are light-colored artwork, so this box stays dark
+       regardless of theme - --ow-role-box-bg is only overridden by the
+       light-background themes, where the shared overlay tokens are too
+       faint to give the icons any contrast. */
+    background: var(--ow-role-box-bg, var(--overlay-white-06, rgba(255, 255, 255, 0.06)));
   }
   .ow-card-role--unranked {
     opacity: 0.4;
@@ -237,5 +249,31 @@
   }
   .ow-card-division--unranked {
     color: var(--text-dim-gray, #6b6a6a);
+  }
+
+  .ow-card-login-btn {
+    width: 100%;
+    padding: 0.5rem;
+    border-radius: 8px;
+    border: none;
+    background: var(--accent);
+    color: var(--ow-accent-text, #0b0e12);
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  .ow-card-login-btn:hover {
+    filter: brightness(1.08);
+  }
+  .ow-card-login-btn:active {
+    filter: brightness(0.94);
+  }
+  .ow-card-login-btn--active {
+    background: var(--overlay-white-12, rgba(255, 255, 255, 0.12));
+    color: var(--whiteSecondary, #fff);
+    cursor: default;
+  }
+  .ow-card-login-btn:disabled {
+    cursor: default;
   }
 </style>

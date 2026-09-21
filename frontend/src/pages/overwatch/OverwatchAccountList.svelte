@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import * as PlatformService from "../../../bindings/TcNo-Acc-Switcher/internal/platform/platformservice.js";
   import * as BasicService from "../../../bindings/TcNo-Acc-Switcher/internal/basic/basicservice.js";
   import * as SteamService from "../../../bindings/TcNo-Acc-Switcher/internal/steam/steamservice.js";
   import type { Settings as SteamSettings } from "../../../bindings/TcNo-Acc-Switcher/internal/steam/models.js";
@@ -9,6 +10,7 @@
   import { formatToastWithError } from "../../lib/formatWailsError";
   import { PLATFORM_ICONS } from "../../lib/overwatch/icons";
   import { ROLES, Role, ROLE_LABELS, rankScore } from "../../lib/overwatch/rankLadder";
+  import { OVERWATCH_THEMES, loadOverwatchTheme, applyOverwatchTheme, type OverwatchThemeId } from "../../lib/overwatch/theme";
   import OverwatchAccountCard from "./OverwatchAccountCard.svelte";
   import OverwatchAccountEditor from "./OverwatchAccountEditor.svelte";
   import OverwatchNamePrompt from "./OverwatchNamePrompt.svelte";
@@ -30,7 +32,6 @@
   let sortBy: SortKey = "name";
   let showHidden = false;
   let editingRow: OverwatchAccountRowData | null = null;
-  let editingNote = "";
   let showSaveBattleNetPrompt = false;
   let saveBattleNetSuggestedName = "";
 
@@ -38,6 +39,30 @@
   let showSteamFolderPrompt = false;
   let steamFolderPromptValue = DEFAULT_STEAM_FOLDER;
   let cachedSteamSettings: SteamSettings | null = null;
+
+  let runOnStartup = false;
+  let runOnStartupBusy = false;
+
+  let currentTheme: OverwatchThemeId = loadOverwatchTheme();
+
+  function handleSelectTheme(id: OverwatchThemeId): void {
+    currentTheme = id;
+    applyOverwatchTheme(id);
+  }
+
+  async function handleToggleRunOnStartup(): Promise<void> {
+    const next = !runOnStartup;
+    runOnStartupBusy = true;
+    try {
+      await PlatformService.SetStartTrayWithWindows(next);
+      runOnStartup = next;
+    } catch (err) {
+      console.error("[overwatch] SetStartTrayWithWindows failed", err);
+      pushToast({ type: "error", message: formatToastWithError("Could not update startup setting", err) });
+    } finally {
+      runOnStartupBusy = false;
+    }
+  }
 
   function rowKey(row: { platform: string; id: string }): string {
     return `${row.platform}|${row.id}`;
@@ -79,6 +104,7 @@
             accountName: "",
             imageUrl: a.imageUrl,
             currentSession: a.currentSession,
+            note: a.note,
             ...(await loadMetaFor("BattleNet", a.uniqueId)),
           }),
         ),
@@ -93,6 +119,7 @@
             accountName: a.accountName,
             imageUrl: a.imageUrl,
             currentSession: a.currentSession,
+            note: a.note,
             ...(await loadMetaFor("Steam", a.steamId64)),
           }),
         ),
@@ -121,6 +148,9 @@
 
   onMount(() => {
     void loadAll();
+    PlatformService.GetStartTrayWithWindows()
+      .then((enabled) => { runOnStartup = enabled; })
+      .catch((err) => console.error("[overwatch] GetStartTrayWithWindows failed", err));
     // Steam accounts sync from loginusers.vdf on every fetch, and a saved
     // Battle.net session only appears after the user logs in outside this
     // window - refreshing when focus actually returns after having left
@@ -232,21 +262,15 @@
     }
   }
 
-  async function openEditor(row: OverwatchAccountRowData): Promise<void> {
+  function openEditor(row: OverwatchAccountRowData): void {
     editingRow = row;
-    try {
-      editingNote = await BasicService.GetAccountNote(row.platformKey, row.id);
-    } catch (err) {
-      console.error("[overwatch] GetAccountNote failed", err);
-      editingNote = "";
-    }
   }
 
   function closeEditor(): void {
     editingRow = null;
   }
 
-  async function handleSaveAccount(roles: OverwatchRoleRanks, note: string): Promise<void> {
+  async function handleSaveAccount(roles: OverwatchRoleRanks): Promise<void> {
     const target = editingRow;
     if (!target) return;
     const payload: Partial<Record<Role, RoleRankDTO>> = {};
@@ -255,14 +279,29 @@
       payload[role] = { tier: rr?.tier ?? "", division: rr?.division ?? 0 };
     }
     try {
-      await Promise.all([
-        OverwatchService.SetRanks(target.platformKey, target.id, payload),
-        BasicService.SetAccountNote(target.platformKey, target.id, note),
-      ]);
+      await OverwatchService.SetRanks(target.platformKey, target.id, payload);
       rows = rows.map((r) => (rowKey(r) === rowKey(target) ? { ...r, roles } : r));
       editingRow = null;
     } catch (err) {
-      pushToast({ type: "error", message: formatToastWithError("Could not save", err) });
+      pushToast({ type: "error", message: formatToastWithError("Could not save rank", err) });
+    }
+  }
+
+  // Saved the moment the note field loses focus, independent of the ranks
+  // Save button - typing a note then just closing the dialog (or the whole
+  // app) used to lose it silently, since nothing had actually sent it to the
+  // backend yet.
+  async function handleSaveNote(note: string): Promise<void> {
+    const target = editingRow;
+    if (!target || note === target.note) return;
+    try {
+      await BasicService.SetAccountNote(target.platformKey, target.id, note);
+      rows = rows.map((r) => (rowKey(r) === rowKey(target) ? { ...r, note } : r));
+      if (editingRow && rowKey(editingRow) === rowKey(target)) {
+        editingRow = { ...editingRow, note };
+      }
+    } catch (err) {
+      pushToast({ type: "error", message: formatToastWithError("Could not save note", err) });
     }
   }
 
@@ -317,6 +356,33 @@
     <button type="button" class="ow-add-btn ow-add-btn--refresh" on:click={loadAll} disabled={refreshing}>
       {refreshing ? "Refreshing…" : "Refresh"}
     </button>
+    <label class="ow-run-on-startup">
+      <input
+        type="checkbox"
+        checked={runOnStartup}
+        disabled={runOnStartupBusy}
+        on:change={handleToggleRunOnStartup}
+      />
+      Run on startup
+    </label>
+  </div>
+
+  <div class="ow-toolbar">
+    <span class="ow-toolbar-label">Theme</span>
+    <div class="ow-theme-group" role="group" aria-label="Choose a theme">
+      {#each OVERWATCH_THEMES as theme (theme.id)}
+        <button
+          type="button"
+          class="ow-theme-swatch"
+          class:ow-theme-swatch--active={currentTheme === theme.id}
+          style="background: {theme.swatch};"
+          title={theme.label}
+          aria-label={theme.label}
+          aria-pressed={currentTheme === theme.id}
+          on:click={() => handleSelectTheme(theme.id)}
+        ></button>
+      {/each}
+    </div>
   </div>
 
   <div class="ow-toolbar">
@@ -359,8 +425,8 @@
 {#if editingRow}
   <OverwatchAccountEditor
     row={editingRow}
-    note={editingNote}
     onSave={handleSaveAccount}
+    onSaveNote={handleSaveNote}
     onCancel={closeEditor}
     onToggleHidden={handleToggleHidden}
   />
@@ -438,6 +504,15 @@
     cursor: not-allowed;
   }
 
+  .ow-run-on-startup {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.78rem;
+    color: var(--text-body-muted, #9d9d9d);
+    cursor: pointer;
+  }
+
   .ow-toolbar {
     display: flex;
     align-items: center;
@@ -452,6 +527,27 @@
     display: flex;
     gap: 0.35rem;
     flex-wrap: wrap;
+  }
+
+  .ow-theme-group {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .ow-theme-swatch {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    padding: 0;
+    cursor: pointer;
+    box-shadow: 0 0 0 1px var(--overlay-white-14, rgba(255, 255, 255, 0.14));
+  }
+  .ow-theme-swatch:hover {
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  .ow-theme-swatch--active {
+    border-color: var(--mainContentBackground, #14181f);
+    box-shadow: 0 0 0 2px var(--accent);
   }
   .ow-sort-btn {
     padding: 0.3rem 0.65rem;
@@ -468,7 +564,7 @@
   .ow-sort-btn--active {
     background: var(--accent);
     border-color: var(--accent);
-    color: #0b0e12;
+    color: var(--ow-accent-text, #0b0e12);
     font-weight: 600;
   }
 
