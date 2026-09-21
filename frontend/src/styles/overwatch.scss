@@ -65,6 +65,7 @@
     /* Role/tier icon artwork is light-colored - needs a genuinely dark chip
        behind it here, not just a faint tint of the page background. */
     --ow-role-box-bg: rgba(20, 23, 26, 0.82);
+    --ow-role-box-text: #ffffff;
 }
 
 [data-ow-theme="cherry"] {
@@ -89,6 +90,7 @@
     --window-control-hover-bg: #ffd7e8;
     --scrollbar-track-bg: #ffe6f0;
     --ow-role-box-bg: rgba(60, 20, 42, 0.78);
+    --ow-role-box-text: #ffffff;
 }
 
 [data-ow-theme="crimson"] {

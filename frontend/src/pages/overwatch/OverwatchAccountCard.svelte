@@ -245,7 +245,10 @@
   .ow-card-division {
     font-size: 0.9rem;
     font-weight: 600;
-    color: var(--whiteSecondary, #fff);
+    /* Sits inside the same dark role-box background as the light-colored
+       tier icon (see --ow-role-box-bg) - needs the same escape hatch from
+       --whiteSecondary, which is dark text on the light/cherry themes. */
+    color: var(--ow-role-box-text, var(--whiteSecondary, #fff));
   }
   .ow-card-division--unranked {
     color: var(--text-dim-gray, #6b6a6a);
