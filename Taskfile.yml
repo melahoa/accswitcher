@@ -19,6 +19,14 @@ tasks:
     cmds:
       - task: "{{OS}}:build"
 
+  build:overwatch:
+    summary: Builds the Overwatch variant (single Battle.net + Steam tab, no other platforms)
+    cmds:
+      - task: "windows:build"
+        vars:
+          EXTRA_TAGS: overwatch
+          FRONTEND_BUILD_COMMAND: build:overwatch
+
   package:
     summary: Packages a production build of the application
     cmds:

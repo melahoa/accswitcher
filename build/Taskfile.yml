@@ -41,7 +41,9 @@ tasks:
     env:
       PRODUCTION: '{{if eq .DEV "true"}}false{{else}}true{{end}}'
     vars:
-      BUILD_COMMAND: '{{if eq .DEV "true"}}build:dev{{else}}build{{end}}'
+      # FRONTEND_BUILD_COMMAND overrides the DEV-based default, for build variants
+      # (e.g. the Overwatch build) whose frontend needs its own `pnpm run` script.
+      BUILD_COMMAND: '{{if .FRONTEND_BUILD_COMMAND}}{{.FRONTEND_BUILD_COMMAND}}{{else if eq .DEV "true"}}build:dev{{else}}build{{end}}'
 
 
   frontend:vendor:puppertino:

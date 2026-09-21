@@ -1,0 +1,16 @@
+/*
+    Overwatch build's fixed look. theme.scss (imported first) defines every CSS
+    custom property the reused shared components expect; this file only retints
+    the handful that give the app its own identity, plus the styling for the
+    build's own components (see OverwatchAccountList.svelte and friends, which
+    keep everything else in their own scoped <style> blocks).
+*/
+:root {
+    --accent: #f99e1a;
+    --accentHS: 38, 93%;
+    --accentL: 54%;
+    --accentInt: 249, 158, 26;
+    --program-bg: linear-gradient(90deg, #14181f, #0f1319 100%);
+    --mainContentBackground: #14181f;
+    --border-bar-bg: #1c2129;
+}

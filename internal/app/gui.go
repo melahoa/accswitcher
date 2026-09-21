@@ -73,9 +73,13 @@ const (
 )
 
 func mainWindowOptions(guiSettings platform.AppSettings, parsed cli.Parsed) application.WebviewWindowOptions {
+	title := "TcNo Account Switcher"
+	if buildmode.IsOverwatchBuild() {
+		title = "Overwatch Account Switcher"
+	}
 	winOpts := application.WebviewWindowOptions{
 		Name:      "main",
-		Title:     "TcNo Account Switcher",
+		Title:     title,
 		MinWidth:  mainWindowMinWidth,
 		MinHeight: mainWindowMinHeight,
 		Mac: application.MacWindow{

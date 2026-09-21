@@ -1,6 +1,11 @@
 /// <reference types="svelte" />
 /// <reference types="vite/client" />
 
+interface ImportMetaEnv {
+  /** Set by `frontend/.env.overwatch`; selects the minimal single-tab shell in main.ts. */
+  readonly VITE_APP_VARIANT?: string
+}
+
 /** Shared key index emitted by vite-plugin-locale-values; each locale module is a value array in this order. */
 declare module "virtual:locale-keys" {
   const keys: string[]

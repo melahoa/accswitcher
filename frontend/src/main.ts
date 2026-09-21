@@ -1,19 +1,7 @@
 import { mount } from 'svelte'
-import App from './App.svelte'
-import './styles/context_menu.scss'
-import './styles/normalize.scss'
-import './styles/style.scss'
-import './styles/theme.scss'
-import './styles/overlayReceivers.scss'
-import './styles/UI.scss'
-import './styles/modal-primary.scss'
-import './styles/acclist.scss'
-import './styles/rtl.scss'
 import { initI18n } from './stores/i18n'
-import { initOfflineMode } from './stores/offlineMode'
-import { resolveInitialRoute, installHashSync } from './stores/nav'
-import { initTheme } from './lib/themes'
-import { installNavigationGuard } from './lib/navigationGuard'
+
+const isOverwatchBuild = import.meta.env.VITE_APP_VARIANT === 'overwatch'
 
 /**
  * Nothing before mount() may decide whether the app paints: the window is
@@ -49,24 +37,68 @@ async function step(name: string, run: () => Promise<unknown>): Promise<void> {
   }
 }
 
-guard('navigation guard', installNavigationGuard)
+function mountInto(component: any, target: HTMLElement): void {
+  try {
+    mount(component, { target })
+    window.__tcnoBoot?.ready()
+  } catch (err) {
+    window.__tcnoBoot?.fail('mount', err)
+    throw err
+  }
+}
 
-void (async () => {
+async function bootOverwatch(): Promise<void> {
+  await import('./styles/normalize.scss')
+  // theme.scss supplies every CSS custom property the reused components
+  // (TitleBar, AccountLiveSessionIndicator, Toast) expect, and style.scss the
+  // base font/scrollbar/window-sizing rules; overwatch.scss layers this
+  // build's own fixed look on top rather than wiring up the full theme picker
+  // for a single-screen app.
+  await import('./styles/theme.scss')
+  await import('./styles/style.scss')
+  await import('./styles/overwatch.scss')
+  // TitleBar (reused as-is for window drag/close) reads translated strings, so
+  // i18n still loads; everything else the full app boots - offline mode,
+  // routing, the navigation guard - has no equivalent here since there is
+  // exactly one screen.
+  await step('i18n', initI18n)
+  const { default: AppOverwatch } = await import('./AppOverwatch.svelte')
+  const target = document.getElementById('app')
+  if (!target) {
+    throw new Error('#app is missing from the document')
+  }
+  mountInto(AppOverwatch, target)
+}
+
+async function bootMain(): Promise<void> {
+  await import('./styles/context_menu.scss')
+  await import('./styles/normalize.scss')
+  await import('./styles/style.scss')
+  await import('./styles/theme.scss')
+  await import('./styles/overlayReceivers.scss')
+  await import('./styles/UI.scss')
+  await import('./styles/modal-primary.scss')
+  await import('./styles/acclist.scss')
+  await import('./styles/rtl.scss')
+  const { initOfflineMode } = await import('./stores/offlineMode')
+  const { resolveInitialRoute, installHashSync } = await import('./stores/nav')
+  const { initTheme } = await import('./lib/themes')
+  const { installNavigationGuard } = await import('./lib/navigationGuard')
+  const { default: App } = await import('./App.svelte')
+
+  guard('navigation guard', installNavigationGuard)
+
   await step('i18n', initI18n)
   await step('offline mode', initOfflineMode)
   await step('theme', initTheme)
   await step('initial route', resolveInitialRoute)
   guard('hash sync', installHashSync)
 
-  try {
-    const target = document.getElementById('app')
-    if (!target) {
-      throw new Error('#app is missing from the document')
-    }
-    mount(App, { target })
-    window.__tcnoBoot?.ready()
-  } catch (err) {
-    window.__tcnoBoot?.fail('mount', err)
-    throw err
+  const target = document.getElementById('app')
+  if (!target) {
+    throw new Error('#app is missing from the document')
   }
-})()
+  mountInto(App, target)
+}
+
+void (isOverwatchBuild ? bootOverwatch() : bootMain())

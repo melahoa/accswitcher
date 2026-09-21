@@ -1,3 +1,5 @@
+//go:build !overwatch
+
 package main
 
 import (
