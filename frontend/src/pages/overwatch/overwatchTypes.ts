@@ -11,7 +11,11 @@ export interface OverwatchAccountRowData {
   platformKey: string;
   id: string;
   name: string;
+  /** Steam's login username, distinct from its public persona name. Empty for Battle.net. */
+  accountName: string;
   imageUrl: string;
   currentSession: boolean;
   roles: OverwatchRoleRanks;
+  /** App-only visibility - never touches the real account or its login files. */
+  hidden: boolean;
 }

@@ -143,6 +143,60 @@ func TestUnrankedScoresBelowEveryRankedTier(t *testing.T) {
 	}
 }
 
+func TestSetHiddenAndGetRoundTrip(t *testing.T) {
+	useStoreRoot(t)
+	if err := SetHidden(testPlatform, testID, true, testNow); err != nil {
+		t.Fatalf("SetHidden: %v", err)
+	}
+	got, err := Get(testPlatform, testID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if !got.Hidden {
+		t.Fatal("expected Hidden = true")
+	}
+}
+
+func TestPutPreservesHiddenFlag(t *testing.T) {
+	useStoreRoot(t)
+	if err := SetHidden(testPlatform, testID, true, testNow); err != nil {
+		t.Fatalf("SetHidden: %v", err)
+	}
+	if err := Put(testPlatform, testID, sampleRoles(), testNow); err != nil {
+		t.Fatalf("Put: %v", err)
+	}
+	got, err := Get(testPlatform, testID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if !got.Hidden {
+		t.Fatal("Put should not have cleared Hidden")
+	}
+	if len(got.Roles) != 3 {
+		t.Fatalf("Roles = %#v, want 3 entries", got.Roles)
+	}
+}
+
+func TestSetHiddenPreservesExistingRoles(t *testing.T) {
+	useStoreRoot(t)
+	if err := Put(testPlatform, testID, sampleRoles(), testNow); err != nil {
+		t.Fatalf("Put: %v", err)
+	}
+	if err := SetHidden(testPlatform, testID, true, testNow); err != nil {
+		t.Fatalf("SetHidden: %v", err)
+	}
+	got, err := Get(testPlatform, testID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if !got.Hidden {
+		t.Fatal("expected Hidden = true")
+	}
+	if len(got.Roles) != 3 {
+		t.Fatalf("SetHidden should not have cleared Roles, got %#v", got.Roles)
+	}
+}
+
 func TestEmeraldSitsBetweenPlatinumAndDiamond(t *testing.T) {
 	platIdx := TierIndex("platinum")
 	emeraldIdx := TierIndex("emerald")

@@ -4,17 +4,20 @@
   import type { OverwatchAccountRowData, OverwatchRoleRanks } from "./overwatchTypes";
 
   export let row: OverwatchAccountRowData;
-  export let onSave: (roles: OverwatchRoleRanks) => void;
+  export let note: string;
+  export let onSave: (roles: OverwatchRoleRanks, note: string) => void;
   export let onCancel: () => void;
+  export let onToggleHidden: () => void;
 
   const divisions = Array.from({ length: MAX_DIVISION - MIN_DIVISION + 1 }, (_, i) => MIN_DIVISION + i);
 
-  // Local working copy - the account's stored ranks are not touched until Save.
+  // Local working copy - the account's stored ranks/note are not touched until Save.
   let draft: Record<string, { tier: string; division: number }> = {};
   for (const role of ROLES) {
     const existing = row.roles[role];
     draft[role] = { tier: existing?.tier ?? "", division: existing?.division ?? MAX_DIVISION };
   }
+  let noteDraft = note;
 
   function setTier(role: string, tier: string): void {
     draft[role] = { ...draft[role], tier };
@@ -32,7 +35,7 @@
         roles[role] = { tier: d.tier, division: d.division };
       }
     }
-    onSave(roles);
+    onSave(roles, noteDraft.trim());
   }
 
   function handleBackdropKeydown(e: KeyboardEvent): void {
@@ -52,7 +55,7 @@
     role="dialog"
     tabindex="-1"
     aria-modal="true"
-    aria-label="Edit ranks for {row.name}"
+    aria-label="Edit {row.name}"
   >
     <h2 class="ow-editor-title">{row.name}</h2>
 
@@ -85,9 +88,17 @@
       {/each}
     </div>
 
+    <label class="ow-editor-note-label" for="ow-editor-note">Note</label>
+    <textarea id="ow-editor-note" class="ow-editor-note" rows="2" bind:value={noteDraft} placeholder="Optional note about this account"></textarea>
+
     <div class="ow-editor-actions">
-      <button type="button" class="ow-btn ow-btn--secondary" on:click={onCancel}>Cancel</button>
-      <button type="button" class="ow-btn ow-btn--primary" on:click={handleSave}>Save</button>
+      <button type="button" class="ow-btn ow-btn--danger" on:click={onToggleHidden}>
+        {row.hidden ? "Unhide account" : "Hide account"}
+      </button>
+      <div class="ow-editor-actions-right">
+        <button type="button" class="ow-btn ow-btn--secondary" on:click={onCancel}>Cancel</button>
+        <button type="button" class="ow-btn ow-btn--primary" on:click={handleSave}>Save</button>
+      </div>
     </div>
   </div>
 </div>
@@ -145,11 +156,33 @@
   .ow-editor-select--division {
     width: 3.2rem;
   }
+  .ow-editor-note-label {
+    display: block;
+    margin: 1rem 0 0.3rem;
+    font-size: 0.8rem;
+    color: var(--text-body-muted, #9d9d9d);
+  }
+  .ow-editor-note {
+    width: 100%;
+    resize: vertical;
+    padding: 0.5rem 0.6rem;
+    border-radius: 6px;
+    background: var(--code-background, #131a20);
+    color: var(--whiteSecondary, #fff);
+    border: 1px solid var(--overlay-white-14, rgba(255, 255, 255, 0.14));
+    font-family: inherit;
+    font-size: 0.85rem;
+  }
   .ow-editor-actions {
     display: flex;
-    justify-content: flex-end;
+    align-items: center;
+    justify-content: space-between;
     gap: 0.5rem;
     margin-top: 1.25rem;
+  }
+  .ow-editor-actions-right {
+    display: flex;
+    gap: 0.5rem;
   }
   .ow-btn {
     padding: 0.4rem 0.9rem;
@@ -167,5 +200,13 @@
     background: var(--accent);
     color: #0b0e12;
     font-weight: 600;
+  }
+  .ow-btn--danger {
+    background: transparent;
+    border-color: var(--error-border-soft, rgba(255, 140, 140, 0.45));
+    color: var(--error-text-soft, #ffb4b4);
+  }
+  .ow-btn--danger:hover {
+    background: var(--error-bg-dim, rgba(60, 20, 20, 0.45));
   }
 </style>

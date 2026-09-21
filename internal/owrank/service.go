@@ -14,9 +14,10 @@ type RoleRankDTO struct {
 
 // EntryDTO is the JSON shape of one account's full set of ranks.
 type EntryDTO struct {
-	PlatformKey string                 `json:"platformKey"`
-	UniqueID    string                 `json:"uniqueId"`
-	Roles       map[Role]RoleRankDTO   `json:"roles"`
+	PlatformKey string               `json:"platformKey"`
+	UniqueID    string               `json:"uniqueId"`
+	Roles       map[Role]RoleRankDTO `json:"roles"`
+	Hidden      bool                 `json:"hidden"`
 }
 
 func toDTO(e Entry) EntryDTO {
@@ -24,7 +25,7 @@ func toDTO(e Entry) EntryDTO {
 	for role, rr := range e.Roles {
 		roles[role] = RoleRankDTO{Tier: rr.Tier, Division: rr.Division}
 	}
-	return EntryDTO{PlatformKey: e.PlatformKey, UniqueID: e.UniqueID, Roles: roles}
+	return EntryDTO{PlatformKey: e.PlatformKey, UniqueID: e.UniqueID, Roles: roles, Hidden: e.Hidden}
 }
 
 // Service is the Wails-bound entry point the Overwatch build's frontend calls
@@ -60,4 +61,14 @@ func (s *Service) SetRanks(platformKey, uniqueId string, roles map[Role]RoleRank
 		converted[role] = RoleRank{Tier: rr.Tier, Division: rr.Division}
 	}
 	return Put(platformKey, uniqueId, converted, time.Now())
+}
+
+// SetHidden shows or hides an account in the Overwatch build's own account
+// list. It never touches the account's real login files, so the account
+// still works normally everywhere else (including the main app).
+func (s *Service) SetHidden(platformKey, uniqueId string, hidden bool) error {
+	if err := security.RequireUnlocked(); err != nil {
+		return err
+	}
+	return SetHidden(platformKey, uniqueId, hidden, time.Now())
 }
