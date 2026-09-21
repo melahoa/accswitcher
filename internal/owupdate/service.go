@@ -18,6 +18,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/updater"
 	"github.com/wailsapp/wails/v3/pkg/updater/providers/github"
 
+	"TcNo-Acc-Switcher/internal/buildmode"
 	"TcNo-Acc-Switcher/internal/security"
 )
 
@@ -76,6 +77,13 @@ func runningApp() (*application.App, error) {
 		return nil, errors.New("application is not ready yet")
 	}
 	return app, nil
+}
+
+// Version returns this running build's own version number, for display
+// (e.g. a small version label in the corner of the window) - not to be
+// confused with the main app's build/config.yml version.
+func (s *Service) Version() string {
+	return buildmode.OverwatchVersion
 }
 
 // CheckForUpdate asks GitHub for the latest release and reports whether it is
