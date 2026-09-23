@@ -108,14 +108,15 @@ func (r RoleRank) Score() int {
 }
 
 // Entry is one account's standings across all four roles, plus whether the
-// Overwatch build's own list should show it. Hidden never touches the
-// account's real login files or the platform's own account list - it only
-// filters this build's view of it.
+// Overwatch build's own list should show it and pin it to the top. Neither
+// flag ever touches the account's real login files or the platform's own
+// account list - they only affect this build's own view of it.
 type Entry struct {
 	PlatformKey string            `json:"platformKey"`
 	UniqueID    string            `json:"uniqueId"`
 	Roles       map[Role]RoleRank `json:"roles"`
 	Hidden      bool              `json:"hidden"`
+	Favorite    bool              `json:"favorite"`
 	UpdatedAt   int64             `json:"updatedAt"`
 }
 
@@ -240,14 +241,16 @@ func Put(platformKey, uniqueID string, roles map[Role]RoleRank, now time.Time) e
 	if err != nil {
 		return err
 	}
-	// Preserve Hidden: editing ranks and hiding an account are independent
-	// actions, and a rank save should never silently un-hide (or hide) it.
-	hidden := entries[key(platformKey, uniqueID)].Hidden
+	// Preserve Hidden/Favorite: editing ranks is independent of hiding or
+	// favoriting an account, and a rank save should never silently change
+	// either.
+	existing := entries[key(platformKey, uniqueID)]
 	entries[key(platformKey, uniqueID)] = Entry{
 		PlatformKey: platformKey,
 		UniqueID:    uniqueID,
 		Roles:       clean,
-		Hidden:      hidden,
+		Hidden:      existing.Hidden,
+		Favorite:    existing.Favorite,
 		UpdatedAt:   now.Unix(),
 	}
 	return save(entries)
@@ -274,6 +277,32 @@ func SetHidden(platformKey, uniqueID string, hidden bool, now time.Time) error {
 	entry.PlatformKey = platformKey
 	entry.UniqueID = uniqueID
 	entry.Hidden = hidden
+	entry.UpdatedAt = now.Unix()
+	entries[k] = entry
+	return save(entries)
+}
+
+// SetFavorite pins or unpins an account to the top of the Overwatch build's
+// own list, leaving its ranks, hidden state, and everything the platform
+// itself knows about the account, untouched.
+func SetFavorite(platformKey, uniqueID string, favorite bool, now time.Time) error {
+	platformKey = strings.TrimSpace(platformKey)
+	uniqueID = strings.TrimSpace(uniqueID)
+	if platformKey == "" || uniqueID == "" {
+		return ErrInvalidStore
+	}
+
+	writeMu.Lock()
+	defer writeMu.Unlock()
+	entries, err := Load()
+	if err != nil {
+		return err
+	}
+	k := key(platformKey, uniqueID)
+	entry := entries[k]
+	entry.PlatformKey = platformKey
+	entry.UniqueID = uniqueID
+	entry.Favorite = favorite
 	entry.UpdatedAt = now.Unix()
 	entries[k] = entry
 	return save(entries)

@@ -7,6 +7,7 @@
   export let row: OverwatchAccountRowData;
   export let onLogin: () => void;
   export let onEdit: () => void;
+  export let onToggleFavorite: () => void;
 </script>
 
 <div
@@ -20,6 +21,25 @@
     alt={PLATFORM_LABEL[row.platform]}
     title={PLATFORM_LABEL[row.platform]}
   />
+
+  <button
+    type="button"
+    class="ow-card-favorite"
+    class:ow-card-favorite--active={row.favorite}
+    on:click={onToggleFavorite}
+    aria-label={row.favorite ? `Unfavorite ${row.name}` : `Favorite ${row.name}`}
+    aria-pressed={row.favorite}
+  >
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+      <path
+        fill={row.favorite ? "currentColor" : "none"}
+        stroke="currentColor"
+        stroke-width="1.6"
+        stroke-linejoin="round"
+        d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21Z"
+      />
+    </svg>
+  </button>
 
   <button type="button" class="ow-card-edit" on:click={onEdit} aria-label="Edit {row.name}">
     <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
@@ -106,7 +126,7 @@
   .ow-card-edit {
     position: absolute;
     top: 0.5rem;
-    right: 0.5rem;
+    right: 2.2rem;
     z-index: 2;
     display: flex;
     align-items: center;
@@ -128,6 +148,38 @@
   .ow-card-edit:hover {
     border-color: var(--accent);
     color: var(--accent);
+  }
+
+  .ow-card-favorite {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 1px solid var(--overlay-white-14, rgba(255, 255, 255, 0.14));
+    background: var(--mainContentBackground, #14181f);
+    color: var(--text-dim-gray, #6b6a6a);
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 120ms ease, border-color 120ms ease, color 120ms ease;
+  }
+  .ow-card-favorite:hover,
+  .ow-card:hover .ow-card-favorite,
+  .ow-card:focus-within .ow-card-favorite {
+    opacity: 1;
+  }
+  .ow-card-favorite:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .ow-card-favorite--active {
+    color: var(--accent);
+    opacity: 1;
   }
 
   .ow-card-avatar {

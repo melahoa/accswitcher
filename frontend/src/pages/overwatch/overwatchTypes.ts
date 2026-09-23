@@ -18,5 +18,7 @@ export interface OverwatchAccountRowData {
   roles: OverwatchRoleRanks;
   /** App-only visibility - never touches the real account or its login files. */
   hidden: boolean;
+  /** Pins this account above every non-favorite account in the list. */
+  favorite: boolean;
   note: string;
 }

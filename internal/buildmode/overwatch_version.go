@@ -6,4 +6,4 @@ package buildmode
 // app's releases against a different repository entirely - reusing it here
 // would compare against the wrong release history. Bump this to match the
 // tag of each Overwatch build release.
-const OverwatchVersion = "0.6.0"
+const OverwatchVersion = "0.7.0"

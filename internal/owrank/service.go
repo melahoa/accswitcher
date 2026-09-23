@@ -18,6 +18,7 @@ type EntryDTO struct {
 	UniqueID    string               `json:"uniqueId"`
 	Roles       map[Role]RoleRankDTO `json:"roles"`
 	Hidden      bool                 `json:"hidden"`
+	Favorite    bool                 `json:"favorite"`
 }
 
 func toDTO(e Entry) EntryDTO {
@@ -25,7 +26,7 @@ func toDTO(e Entry) EntryDTO {
 	for role, rr := range e.Roles {
 		roles[role] = RoleRankDTO{Tier: rr.Tier, Division: rr.Division}
 	}
-	return EntryDTO{PlatformKey: e.PlatformKey, UniqueID: e.UniqueID, Roles: roles, Hidden: e.Hidden}
+	return EntryDTO{PlatformKey: e.PlatformKey, UniqueID: e.UniqueID, Roles: roles, Hidden: e.Hidden, Favorite: e.Favorite}
 }
 
 // Service is the Wails-bound entry point the Overwatch build's frontend calls
@@ -71,4 +72,13 @@ func (s *Service) SetHidden(platformKey, uniqueId string, hidden bool) error {
 		return err
 	}
 	return SetHidden(platformKey, uniqueId, hidden, time.Now())
+}
+
+// SetFavorite pins or unpins an account to the top of the Overwatch build's
+// own account list. It never touches the account's real login files.
+func (s *Service) SetFavorite(platformKey, uniqueId string, favorite bool) error {
+	if err := security.RequireUnlocked(); err != nil {
+		return err
+	}
+	return SetFavorite(platformKey, uniqueId, favorite, time.Now())
 }

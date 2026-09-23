@@ -114,7 +114,10 @@
     return `${row.platform}|${row.id}`;
   }
 
-  async function loadMetaFor(platformKey: string, uniqueId: string): Promise<{ roles: OverwatchRoleRanks; hidden: boolean }> {
+  async function loadMetaFor(
+    platformKey: string,
+    uniqueId: string,
+  ): Promise<{ roles: OverwatchRoleRanks; hidden: boolean; favorite: boolean }> {
     try {
       const entry = await OverwatchService.GetRank(platformKey, uniqueId);
       const roles: OverwatchRoleRanks = {};
@@ -122,11 +125,11 @@
         const rr = entry.roles[role];
         if (rr && rr.tier) roles[role] = { tier: rr.tier, division: rr.division };
       }
-      return { roles, hidden: entry.hidden };
+      return { roles, hidden: entry.hidden, favorite: entry.favorite };
     } catch {
       // An account with no ranks saved yet, or a store read failure - either
-      // way the row just shows every role as unranked and visible.
-      return { roles: {}, hidden: false };
+      // way the row just shows every role as unranked, visible, and unpinned.
+      return { roles: {}, hidden: false, favorite: false };
     }
   }
 
@@ -371,9 +374,23 @@
     }
   }
 
+  async function handleToggleFavorite(row: OverwatchAccountRowData): Promise<void> {
+    const nextFavorite = !row.favorite;
+    try {
+      await OverwatchService.SetFavorite(row.platformKey, row.id, nextFavorite);
+      rows = rows.map((r) => (rowKey(r) === rowKey(row) ? { ...r, favorite: nextFavorite } : r));
+    } catch (err) {
+      pushToast({ type: "error", message: formatToastWithError("Could not update favorite", err) });
+    }
+  }
+
   $: visibleRows = showHidden ? rows : rows.filter((r) => !r.hidden);
 
   $: sortedRows = [...visibleRows].sort((a, b) => {
+    // Favorites always float above every non-favorite account, regardless of
+    // which sort is selected - within each of those two groups, the chosen
+    // sort still applies.
+    if (a.favorite !== b.favorite) return a.favorite ? -1 : 1;
     if (sortBy === "name") return a.name.localeCompare(b.name);
     const rankA = a.roles[sortBy];
     const rankB = b.roles[sortBy];
@@ -467,7 +484,12 @@
       <p class="ow-status">No Battle.net or Steam accounts found yet. Sign in once from within each app and it will show up here.</p>
     {:else}
       {#each sortedRows as row (rowKey(row))}
-        <OverwatchAccountCard {row} onLogin={() => handleLogin(row)} onEdit={() => openEditor(row)} />
+        <OverwatchAccountCard
+          {row}
+          onLogin={() => handleLogin(row)}
+          onEdit={() => openEditor(row)}
+          onToggleFavorite={() => handleToggleFavorite(row)}
+        />
       {/each}
     {/if}
   </div>

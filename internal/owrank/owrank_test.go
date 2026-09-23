@@ -197,6 +197,60 @@ func TestSetHiddenPreservesExistingRoles(t *testing.T) {
 	}
 }
 
+func TestSetFavoriteAndGetRoundTrip(t *testing.T) {
+	useStoreRoot(t)
+	if err := SetFavorite(testPlatform, testID, true, testNow); err != nil {
+		t.Fatalf("SetFavorite: %v", err)
+	}
+	got, err := Get(testPlatform, testID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if !got.Favorite {
+		t.Fatal("expected Favorite = true")
+	}
+}
+
+func TestPutPreservesFavoriteFlag(t *testing.T) {
+	useStoreRoot(t)
+	if err := SetFavorite(testPlatform, testID, true, testNow); err != nil {
+		t.Fatalf("SetFavorite: %v", err)
+	}
+	if err := Put(testPlatform, testID, sampleRoles(), testNow); err != nil {
+		t.Fatalf("Put: %v", err)
+	}
+	got, err := Get(testPlatform, testID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if !got.Favorite {
+		t.Fatal("Put should not have cleared Favorite")
+	}
+	if len(got.Roles) != 3 {
+		t.Fatalf("Roles = %#v, want 3 entries", got.Roles)
+	}
+}
+
+func TestSetFavoriteAndSetHiddenAreIndependent(t *testing.T) {
+	useStoreRoot(t)
+	if err := SetFavorite(testPlatform, testID, true, testNow); err != nil {
+		t.Fatalf("SetFavorite: %v", err)
+	}
+	if err := SetHidden(testPlatform, testID, true, testNow); err != nil {
+		t.Fatalf("SetHidden: %v", err)
+	}
+	got, err := Get(testPlatform, testID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if !got.Favorite {
+		t.Fatal("SetHidden should not have cleared Favorite")
+	}
+	if !got.Hidden {
+		t.Fatal("expected Hidden = true")
+	}
+}
+
 func TestEmeraldSitsBetweenPlatinumAndDiamond(t *testing.T) {
 	platIdx := TierIndex("platinum")
 	emeraldIdx := TierIndex("emerald")
